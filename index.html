@@ -96,9 +96,9 @@
 
   #mapaRuta{ width:100%; height:34vh; min-height:200px; background:var(--gris-claro); }
   .btn-ubicacion{
-    position:absolute; right:10px; bottom:90px; width:42px; height:42px;
-    border-radius:50%; border:none; background:#fff; font-size:19px;
-    box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer; z-index:5;
+    width:40px; height:40px; margin:10px 10px 0 0;
+    border-radius:8px; border:none; background:#fff; font-size:18px;
+    box-shadow:0 2px 6px rgba(0,0,0,.3); cursor:pointer;
   }
   .btn-ubicacion.activo{ background:var(--azul); }
 
@@ -347,6 +347,13 @@ function initMaps(){
   mapaRuta = new google.maps.Map(document.getElementById('mapaRuta'), {
     center: CENTRO_DEFAULT, zoom: 13, disableDefaultUI:true, zoomControl:true
   });
+
+  // Botón "Mi ubicación" como control nativo del mapa: Google lo ubica
+  // siempre en la esquina superior derecha y evita que se pise con
+  // otros controles, tanto en PC como en celular.
+  const btnUbicacion = document.getElementById('btnMiUbicacion');
+  btnUbicacion.style.display = 'block';
+  mapaRuta.controls[google.maps.ControlPosition.TOP_RIGHT].push(btnUbicacion);
 
   mapaModal = new google.maps.Map(document.getElementById('mapaModal'), {
     center: CENTRO_DEFAULT, zoom: 13, disableDefaultUI:true, zoomControl:true
