@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Ruta Reparto - Don Picconi</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1a56db">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<style>
+  :root{
+    --azul: #1a56db;
+    --azul-oscuro: #123a99;
+    --azul-claro: #e8f0fe;
+    --gris: #6b7280;
+    --gris-claro: #f3f4f6;
+    --borde: #e2e5ea;
+    --rojo: #dc2626;
+    --verde: #16a34a;
+    --texto: #1f2430;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background:#fff; color:var(--texto);
+  }
+  #app{ display:flex; flex-direction:column; height:100vh; }
+
+  header{
+    padding:14px 16px 10px;
+    border-bottom:1px solid var(--borde);
+  }
+  header h1{
+    margin:0 0 12px; font-size:17px; font-weight:700; color:var(--azul-oscuro);
+  }
+
+  /* Pestañas tipo píldora */
+  .tabs{
+    display:flex; gap:6px; background:var(--gris-claro);
+    padding:4px; border-radius:999px;
+  }
+  .tab-btn{
+    flex:1; border:none; background:transparent; padding:9px 6px;
+    border-radius:999px; font-size:13.5px; font-weight:600; color:var(--gris);
+    cursor:pointer; transition:all .15s ease;
+  }
+  .tab-btn.active{
+    background:var(--azul); color:#fff; box-shadow:0 1px 3px rgba(26,86,219,.35);
+  }
+
+  main{ flex:1; overflow:hidden; position:relative; }
+  .panel{
+    position:absolute; inset:0; display:none; flex-direction:column;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .panel.active{ display:flex; }
+
+  /* ---- Lista de repartos ---- */
+  .contenido-pad{ padding:14px; padding-bottom:90px; }
+  .reparto-item{
+    display:flex; align-items:center; gap:10px;
+    border:1px solid var(--borde); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px; cursor:pointer;
+  }
+  .reparto-item .info{ flex:1; min-width:0; }
+  .reparto-item .nombre{ font-weight:700; font-size:15px; }
+  .reparto-item .detalle{ font-size:12.5px; color:var(--gris); margin-top:2px; }
+  .reparto-item .flecha{ color:var(--gris); font-size:18px; }
+  .estado{
+    display:inline-block; font-size:11px; font-weight:700; padding:2px 8px;
+    border-radius:999px; margin-top:6px;
+  }
+  .estado.completa{ background:#dcfce7; color:var(--verde); }
+  .estado.parcial{ background:#fef3c7; color:#b45309; }
+  .estado.curso{ background:var(--azul-claro); color:var(--azul); }
+
+  .fab{
+    position:fixed; right:18px; bottom:80px; width:52px; height:52px; border-radius:50%;
+    background:var(--azul); color:#fff; border:none; font-size:26px; cursor:pointer;
+    box-shadow:0 3px 10px rgba(26,86,219,.4); display:flex; align-items:center; justify-content:center;
+    z-index:20;
+  }
+
+  /* ---- Detalle de un reparto ---- */
+  .barra-detalle{
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    border-bottom:1px solid var(--borde);
+  }
+  .btn-volver{
+    background:none; border:none; font-size:20px; cursor:pointer; color:var(--azul-oscuro);
+    padding:2px 4px;
+  }
+  .barra-detalle .titulo-reparto{ font-weight:700; font-size:15px; flex:1; }
+
+  #mapaRuta{ width:100%; height:34vh; min-height:200px; background:var(--gris-claro); }
+  .btn-ubicacion{
+    position:absolute; right:10px; bottom:10px; width:42px; height:42px;
+    border-radius:50%; border:none; background:#fff; font-size:19px;
+    box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer; z-index:5;
+  }
+  .btn-ubicacion.activo{ background:var(--azul); }
+
+  .lista-paradas{ flex:1; padding:10px 12px 90px; }
+  .parada{
+    display:flex; align-items:center; gap:10px;
+    background:#fff; border:1px solid var(--borde); border-radius:12px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .parada.hecha{ opacity:.55; }
+  .parada .num{
+    width:26px; height:26px; border-radius:50%; background:var(--azul);
+    color:#fff; font-size:12.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .parada.hecha .num{ background:var(--verde); }
+  .parada .info{ flex:1; min-width:0; }
+  .parada .info .nombre{ font-weight:600; font-size:14.5px; }
+  .parada .info .direccion{ font-size:12.5px; color:var(--gris); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .parada .acciones{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .btn-ir{
+    background:var(--azul); color:#fff; border:none; border-radius:8px;
+    padding:8px 9px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn-listo{
+    background:var(--verde); color:#fff; border:none; border-radius:8px;
+    padding:8px 9px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn-pendiente{
+    background:var(--gris-claro); color:var(--texto); border:1px solid var(--borde); border-radius:8px;
+    padding:8px 9px; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .icon-btn{
+    background:none; border:none; font-size:15px; padding:4px 3px; cursor:pointer;
+  }
+
+  .vacio{ text-align:center; color:var(--gris); font-size:13.5px; padding:40px 20px; }
+
+  .barra-inferior{
+    position:sticky; bottom:0; background:#fff; padding:10px 12px;
+    border-top:1px solid var(--borde); display:flex; gap:8px;
+  }
+  .btn-primario{
+    width:100%; background:var(--azul); color:#fff; border:none;
+    border-radius:10px; padding:13px; font-size:14.5px; font-weight:700; cursor:pointer;
+  }
+  .btn-primario:disabled{ background:#a9b8de; }
+  .barra-inferior .btn-primario, .barra-inferior .btn-secundario{ width:auto; flex:1; }
+
+  /* ---- Modales ---- */
+  .campo{ margin-bottom:12px; }
+  .campo label{ display:block; font-size:12.5px; color:var(--gris); margin-bottom:4px; font-weight:600; }
+  .campo input, .campo textarea{
+    width:100%; padding:10px 12px; border:1px solid var(--borde); border-radius:9px;
+    font-size:14.5px; font-family:inherit;
+  }
+  #mapaModal{ width:100%; height:200px; border-radius:10px; background:var(--gris-claro); margin-bottom:10px; }
+  .hint{ font-size:12px; color:var(--gris); margin:-6px 0 12px; }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.4); display:none;
+    align-items:flex-end; z-index:50;
+  }
+  .overlay.active{ display:flex; }
+  .modal{
+    background:#fff; width:100%; border-radius:16px 16px 0 0; padding:16px;
+    max-height:88vh; overflow-y:auto;
+  }
+  .modal h2{ margin:0 0 12px; font-size:16px; }
+  .modal-acciones{ display:flex; gap:8px; margin-top:6px; }
+  .btn-secundario{
+    flex:1; background:var(--gris-claro); color:var(--texto); border:none;
+    border-radius:9px; padding:11px; font-weight:700; font-size:14px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🐔 Ruta Reparto — Don Picconi</h1>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="ruta">Ruta</button>
+      <button class="tab-btn" data-tab="informes">Informes</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== PESTAÑA RUTA ===== -->
+    <section class="panel active" id="panel-ruta">
+
+      <!-- Vista: lista de repartos -->
+      <div id="vistaListaRepartos">
+        <div class="contenido-pad">
+          <div id="listaRepartos"></div>
+          <div class="vacio" id="repartosVacio" style="display:none;">Todavía no armaste ningún reparto.<br>Tocá el botón + para crear el primero.</div>
+        </div>
+        <button class="fab" id="btnNuevoReparto">+</button>
+      </div>
+
+      <!-- Vista: detalle de un reparto -->
+      <div id="vistaDetalleReparto" style="display:none; flex-direction:column; flex:1; min-height:0;">
+        <div class="barra-detalle">
+          <button class="btn-volver" id="btnVolverLista">←</button>
+          <div class="titulo-reparto" id="tituloRepartoActual">Reparto</div>
+        </div>
+
+        <div style="position:relative;">
+          <div id="mapaRuta"></div>
+          <button id="btnMiUbicacion" class="btn-ubicacion" title="Mi ubicación">📍</button>
+        </div>
+
+        <div class="lista-paradas" id="listaParadas"></div>
+
+        <button class="fab" id="btnNuevaParada">+</button>
+
+        <div class="barra-inferior">
+          <button class="btn-secundario" id="btnGuardarReparto">Guardar reparto</button>
+          <button class="btn-primario" id="btnTerminarReparto">Terminar reparto</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== PESTAÑA INFORMES ===== -->
+    <section class="panel" id="panel-informes">
+      <div class="contenido-pad" id="listaInformes">
+        <div class="vacio" id="informesVacio">Todavía no terminaste ningún reparto.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal: nombre del nuevo reparto -->
+<div class="overlay" id="overlayNuevoReparto">
+  <div class="modal">
+    <h2>Nuevo reparto</h2>
+    <div class="campo">
+      <label>Nombre del reparto</label>
+      <input type="text" id="inputNombreReparto" placeholder="Ej: Reparto 1 - El Pingo">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btnCancelarReparto">Cancelar</button>
+      <button class="btn-primario" id="btnCrearReparto" style="flex:1;">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: alta/edición de parada (cliente dentro del reparto) -->
+<div class="overlay" id="overlayParada">
+  <div class="modal">
+    <h2 id="tituloModalParada">Nuevo cliente</h2>
+    <div class="campo">
+      <label>Nombre</label>
+      <input type="text" id="inputNombre" placeholder="Ej: Cliente 1">
+    </div>
+    <div class="campo">
+      <label>Dirección (referencia)</label>
+      <input type="text" id="inputDireccion" placeholder="Calle y número, localidad">
+    </div>
+    <div class="campo">
+      <label>Teléfono (opcional)</label>
+      <input type="text" id="inputTelefono" placeholder="Ej: 343 555-1234">
+    </div>
+    <div class="campo">
+      <label>Ubicación (tocá el mapa para marcar el punto)</label>
+      <div id="mapaModal"></div>
+      <div class="hint" id="hintCoords">Sin ubicación marcada todavía.</div>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btnCancelarParada">Cancelar</button>
+      <button class="btn-primario" id="btnGuardarParada" style="flex:1;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================
+   ESTADO Y ALMACENAMIENTO (localStorage)
+   ====================================================== */
+const LS_REPARTOS = 'dp_repartos';
+const LS_INFORMES = 'dp_informes';
+
+// repartos: [{ id, nombre, fechaCreacion, paradas: [{ id, nombre, direccion, telefono, lat, lng, hecha }] }]
+let repartos = JSON.parse(localStorage.getItem(LS_REPARTOS) || '[]');
+
+// informes: [{ id, repartoId, repartoNombre, fecha, total, hechas }]
+// Cada vez que se toca "Terminar reparto" se agrega una entrada nueva acá,
+// el reparto en sí queda intacto y se puede volver a usar.
+let informes = JSON.parse(localStorage.getItem(LS_INFORMES) || '[]');
+
+let repartoActualId = null; // id del reparto abierto en la vista de detalle
+
+function guardarRepartos(){ localStorage.setItem(LS_REPARTOS, JSON.stringify(repartos)); }
+function guardarInformes(){ localStorage.setItem(LS_INFORMES, JSON.stringify(informes)); }
+function nuevoId(prefijo){ return prefijo + Date.now() + Math.floor(Math.random()*1000); }
+function repartoActual(){ return repartos.find(r=>r.id===repartoActualId); }
+
+/* ======================================================
+   TABS
+   ====================================================== */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='ruta' && repartoActualId) setTimeout(()=>{ if(mapaRuta) google.maps.event.trigger(mapaRuta,'resize'); },50);
+    if(btn.dataset.tab==='informes') renderInformes();
+  });
+});
+
+/* ======================================================
+   GOOGLE MAPS
+   ====================================================== */
+let mapaRuta, mapaModal;
+let marcadoresRuta = [];
+let marcadorNuevaParada = null;
+let coordsNuevaParada = null;
+let watchIdGPS = null;
+let marcadorMiUbicacion = null;
+let circuloPrecision = null;
+
+// Centro por defecto: Paraná, Entre Ríos
+const CENTRO_DEFAULT = { lat: -31.7333, lng: -60.5297 };
+
+function initMaps(){
+  mapaRuta = new google.maps.Map(document.getElementById('mapaRuta'), {
+    center: CENTRO_DEFAULT, zoom: 13, disableDefaultUI:true, zoomControl:true
+  });
+
+  mapaModal = new google.maps.Map(document.getElementById('mapaModal'), {
+    center: CENTRO_DEFAULT, zoom: 13, disableDefaultUI:true, zoomControl:true
+  });
+  mapaModal.addListener('click', (e)=>{
+    coordsNuevaParada = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    if(marcadorNuevaParada) marcadorNuevaParada.setMap(null);
+    marcadorNuevaParada = new google.maps.Marker({ position: coordsNuevaParada, map: mapaModal });
+    document.getElementById('hintCoords').textContent =
+      'Ubicación marcada (' + coordsNuevaParada.lat.toFixed(5) + ', ' + coordsNuevaParada.lng.toFixed(5) + ')';
+  });
+
+  renderListaRepartos();
+}
+
+function pintarPinesRuta(){
+  marcadoresRuta.forEach(m=>m.setMap(null));
+  marcadoresRuta = [];
+  const r = repartoActual();
+  if(!r) return;
+  r.paradas.forEach((p, idx)=>{
+    if(p.lat==null) return;
+    marcadoresRuta.push(crearPinNumerado(p, idx+1, p.hecha));
+  });
+}
+
+function crearPinNumerado(parada, numero, hecha){
+  return new google.maps.Marker({
+    position:{ lat:parada.lat, lng:parada.lng },
+    map: mapaRuta,
+    title: parada.nombre,
+    icon:{
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 14,
+      fillColor: hecha ? '#16a34a' : '#1a56db',
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 2
+    },
+    label:{ text:String(numero), color:'#fff', fontSize:'12px', fontWeight:'700' }
+  });
+}
+
+/* ---- Mi ubicación (GPS) ---- */
+document.getElementById('btnMiUbicacion').addEventListener('click', toggleMiUbicacion);
+
+function toggleMiUbicacion(){
+  if(watchIdGPS){
+    navigator.geolocation.clearWatch(watchIdGPS);
+    watchIdGPS = null;
+    if(marcadorMiUbicacion) marcadorMiUbicacion.setMap(null);
+    if(circuloPrecision) circuloPrecision.setMap(null);
+    marcadorMiUbicacion = null; circuloPrecision = null;
+    document.getElementById('btnMiUbicacion').classList.remove('activo');
+    return;
+  }
+  if(!navigator.geolocation){
+    alert('Este navegador no soporta geolocalización.');
+    return;
+  }
+  document.getElementById('btnMiUbicacion').classList.add('activo');
+  let primeraVez = true;
+  watchIdGPS = navigator.geolocation.watchPosition(
+    (pos)=>{
+      const punto = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if(!marcadorMiUbicacion){
+        marcadorMiUbicacion = new google.maps.Marker({
+          position: punto, map: mapaRuta, title:'Vos estás acá',
+          icon:{
+            path: google.maps.SymbolPath.CIRCLE, scale:8,
+            fillColor:'#1a56db', fillOpacity:1, strokeColor:'#fff', strokeWeight:2
+          }
+        });
+        circuloPrecision = new google.maps.Circle({
+          map: mapaRuta, center: punto, radius: pos.coords.accuracy,
+          fillColor:'#1a56db', fillOpacity:.12, strokeColor:'#1a56db', strokeOpacity:.3, strokeWeight:1
+        });
+      } else {
+        marcadorMiUbicacion.setPosition(punto);
+        circuloPrecision.setCenter(punto);
+        circuloPrecision.setRadius(pos.coords.accuracy);
+      }
+      if(primeraVez){ mapaRuta.setCenter(punto); mapaRuta.setZoom(15); primeraVez = false; }
+    },
+    (err)=>{
+      alert('No se pudo obtener tu ubicación: ' + err.message);
+      document.getElementById('btnMiUbicacion').classList.remove('activo');
+      watchIdGPS = null;
+    },
+    { enableHighAccuracy:true, maximumAge:5000, timeout:10000 }
+  );
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML;
+}
+
+/* ======================================================
+   LISTA DE REPARTOS
+   ====================================================== */
+function renderListaRepartos(){
+  const cont = document.getElementById('listaRepartos');
+  const vacio = document.getElementById('repartosVacio');
+  cont.innerHTML = '';
+  if(repartos.length===0){ vacio.style.display='block'; return; }
+  vacio.style.display='none';
+
+  repartos.slice().reverse().forEach(r=>{
+    const total = r.paradas.length;
+    const hechas = r.paradas.filter(p=>p.hecha).length;
+    const completa = total>0 && hechas===total;
+    const fecha = new Date(r.fechaCreacion);
+    const fechaStr = fecha.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const div = document.createElement('div');
+    div.className = 'reparto-item';
+    div.innerHTML = `
+      <div class="info">
+        <div class="nombre">${escapeHtml(r.nombre)}</div>
+        <div class="detalle">${fechaStr} · ${total} parada${total===1?'':'s'}</div>
+        <span class="estado ${completa ? 'completa' : (hechas>0?'parcial':'curso')}">
+          ${completa ? 'Completo' : (hechas>0 ? hechas+' de '+total : 'Sin iniciar')}
+        </span>
+      </div>
+      <div class="flecha">›</div>`;
+    div.addEventListener('click', ()=>abrirReparto(r.id));
+    cont.appendChild(div);
+  });
+}
+
+document.getElementById('btnNuevoReparto').addEventListener('click', ()=>{
+  document.getElementById('inputNombreReparto').value = '';
+  document.getElementById('overlayNuevoReparto').classList.add('active');
+});
+document.getElementById('btnCancelarReparto').addEventListener('click', ()=>{
+  document.getElementById('overlayNuevoReparto').classList.remove('active');
+});
+document.getElementById('btnCrearReparto').addEventListener('click', ()=>{
+  const nombre = document.getElementById('inputNombreReparto').value.trim();
+  if(!nombre){ alert('Poné un nombre para el reparto.'); return; }
+  const r = { id: nuevoId('r'), nombre, fechaCreacion: new Date().toISOString(), paradas:[] };
+  repartos.push(r);
+  guardarRepartos();
+  document.getElementById('overlayNuevoReparto').classList.remove('active');
+  renderListaRepartos();
+  abrirReparto(r.id);
+});
+
+/* ======================================================
+   DETALLE DE UN REPARTO
+   ====================================================== */
+function abrirReparto(id){
+  repartoActualId = id;
+  document.getElementById('vistaListaRepartos').style.display = 'none';
+  document.getElementById('vistaDetalleReparto').style.display = 'flex';
+  document.getElementById('tituloRepartoActual').textContent = repartoActual().nombre;
+  renderDetalleReparto();
+  setTimeout(()=>{ if(mapaRuta) google.maps.event.trigger(mapaRuta,'resize'); },50);
+}
+
+document.getElementById('btnVolverLista').addEventListener('click', ()=>{
+  // apagar GPS al salir, para no gastar batería de fondo
+  if(watchIdGPS) toggleMiUbicacion();
+  repartoActualId = null;
+  document.getElementById('vistaDetalleReparto').style.display = 'none';
+  document.getElementById('vistaListaRepartos').style.display = 'block';
+  renderListaRepartos();
+});
+
+function renderDetalleReparto(){
+  pintarPinesRuta();
+  const r = repartoActual();
+  const cont = document.getElementById('listaParadas');
+  cont.innerHTML = '';
+
+  if(r.paradas.length===0){
+    cont.innerHTML = '<div class="vacio">Todavía no agregaste clientes a este reparto.<br>Tocá el botón + para cargar el primero.</div>';
+    return;
+  }
+
+  r.paradas.forEach((p, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'parada' + (p.hecha ? ' hecha' : '');
+    div.innerHTML = `
+      <div class="num">${idx+1}</div>
+      <div class="info">
+        <div class="nombre">${escapeHtml(p.nombre)}</div>
+        <div class="direccion">${escapeHtml(p.direccion||'Sin dirección')}</div>
+      </div>
+      <div class="acciones">
+        ${p.hecha
+          ? `<button class="btn-pendiente">Pendiente</button>`
+          : `<button class="btn-ir">Ir</button><button class="btn-listo">Listo</button>`}
+        <button class="icon-btn" title="Editar">✏️</button>
+        <button class="icon-btn" title="Eliminar">🗑️</button>
+      </div>`;
+    if(!p.hecha){
+      div.querySelector('.btn-ir').addEventListener('click', ()=>abrirNavegacion(p));
+      div.querySelector('.btn-listo').addEventListener('click', ()=>{
+        p.hecha = true;
+        guardarRepartos();
+        renderDetalleReparto();
+      });
+    } else {
+      div.querySelector('.btn-pendiente').addEventListener('click', ()=>{
+        p.hecha = false;
+        guardarRepartos();
+        renderDetalleReparto();
+      });
+    }
+    div.querySelector('[title="Editar"]').addEventListener('click', ()=>abrirModalParada(p));
+    div.querySelector('[title="Eliminar"]').addEventListener('click', ()=>{
+      if(confirm('¿Eliminar a '+p.nombre+' de este reparto?')){
+        r.paradas = r.paradas.filter(x=>x.id!==p.id);
+        guardarRepartos();
+        renderDetalleReparto();
+      }
+    });
+    cont.appendChild(div);
+  });
+}
+
+function abrirNavegacion(parada){
+  let url;
+  if(parada.lat!=null){
+    url = `https://www.google.com/maps/dir/?api=1&destination=${parada.lat},${parada.lng}`;
+  } else {
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(parada.direccion || parada.nombre)}`;
+  }
+  window.open(url, '_blank');
+}
+
+document.getElementById('btnGuardarReparto').addEventListener('click', ()=>{
+  guardarRepartos();
+  if(watchIdGPS) toggleMiUbicacion();
+  repartoActualId = null;
+  document.getElementById('vistaDetalleReparto').style.display = 'none';
+  document.getElementById('vistaListaRepartos').style.display = 'block';
+  renderListaRepartos();
+});
+
+document.getElementById('btnTerminarReparto').addEventListener('click', ()=>{
+  const r = repartoActual();
+  if(!confirm('¿Terminar este reparto? Se va a guardar como una entrada nueva en Informes.')) return;
+
+  const total = r.paradas.length;
+  const hechas = r.paradas.filter(p=>p.hecha).length;
+  informes.push({
+    id: nuevoId('i'),
+    repartoId: r.id,
+    repartoNombre: r.nombre,
+    fecha: new Date().toISOString(),
+    total, hechas
+  });
+  guardarInformes();
+
+  if(watchIdGPS) toggleMiUbicacion();
+  repartoActualId = null;
+  document.getElementById('vistaDetalleReparto').style.display = 'none';
+  document.getElementById('vistaListaRepartos').style.display = 'block';
+  renderListaRepartos();
+});
+
+/* ======================================================
+   MODAL: agregar/editar parada (cliente dentro del reparto)
+   ====================================================== */
+let editandoParadaId = null;
+
+document.getElementById('btnNuevaParada').addEventListener('click', ()=>abrirModalParada());
+document.getElementById('btnCancelarParada').addEventListener('click', cerrarModalParada);
+
+function abrirModalParada(parada){
+  editandoParadaId = parada ? parada.id : null;
+  document.getElementById('tituloModalParada').textContent = parada ? 'Editar cliente' : 'Nuevo cliente';
+  document.getElementById('inputNombre').value = parada ? parada.nombre : '';
+  document.getElementById('inputDireccion').value = parada ? parada.direccion : '';
+  document.getElementById('inputTelefono').value = parada ? (parada.telefono||'') : '';
+  coordsNuevaParada = parada && parada.lat!=null ? {lat:parada.lat, lng:parada.lng} : null;
+
+  document.getElementById('overlayParada').classList.add('active');
+  setTimeout(()=>{
+    google.maps.event.trigger(mapaModal,'resize');
+    const centro = coordsNuevaParada || CENTRO_DEFAULT;
+    mapaModal.setCenter(centro);
+    if(marcadorNuevaParada) marcadorNuevaParada.setMap(null);
+    if(coordsNuevaParada){
+      marcadorNuevaParada = new google.maps.Marker({position:coordsNuevaParada, map:mapaModal});
+      document.getElementById('hintCoords').textContent =
+        'Ubicación marcada (' + coordsNuevaParada.lat.toFixed(5) + ', ' + coordsNuevaParada.lng.toFixed(5) + ')';
+    } else {
+      marcadorNuevaParada = null;
+      document.getElementById('hintCoords').textContent = 'Sin ubicación marcada todavía.';
+    }
+  },50);
+}
+
+function cerrarModalParada(){
+  document.getElementById('overlayParada').classList.remove('active');
+}
+
+document.getElementById('btnGuardarParada').addEventListener('click', ()=>{
+  const nombre = document.getElementById('inputNombre').value.trim();
+  const direccion = document.getElementById('inputDireccion').value.trim();
+  const telefono = document.getElementById('inputTelefono').value.trim();
+  if(!nombre){ alert('Poné un nombre para el cliente.'); return; }
+
+  const r = repartoActual();
+  if(editandoParadaId){
+    const p = r.paradas.find(x=>x.id===editandoParadaId);
+    p.nombre = nombre; p.direccion = direccion; p.telefono = telefono;
+    if(coordsNuevaParada){ p.lat = coordsNuevaParada.lat; p.lng = coordsNuevaParada.lng; }
+  } else {
+    r.paradas.push({
+      id: nuevoId('p'), nombre, direccion, telefono,
+      lat: coordsNuevaParada ? coordsNuevaParada.lat : null,
+      lng: coordsNuevaParada ? coordsNuevaParada.lng : null,
+      hecha: false
+    });
+  }
+  guardarRepartos();
+  cerrarModalParada();
+  renderDetalleReparto();
+});
+
+/* ======================================================
+   INFORMES
+   ====================================================== */
+function renderInformes(){
+  const cont = document.getElementById('listaInformes');
+  const vacio = document.getElementById('informesVacio');
+  cont.innerHTML = '';
+
+  if(informes.length>0){
+    const btnEliminarTodos = document.createElement('button');
+    btnEliminarTodos.className = 'btn-secundario';
+    btnEliminarTodos.style.width = '100%';
+    btnEliminarTodos.style.marginBottom = '12px';
+    btnEliminarTodos.textContent = '🗑️ Eliminar todos los informes';
+    btnEliminarTodos.addEventListener('click', ()=>{
+      if(confirm('¿Eliminar todos los informes? Esto no borra los repartos ni sus clientes, solo el historial.')){
+        informes = [];
+        guardarInformes();
+        renderInformes();
+      }
+    });
+    cont.appendChild(btnEliminarTodos);
+  }
+
+  if(informes.length===0){ cont.appendChild(vacio); return; }
+
+  informes.slice().reverse().forEach(inf=>{
+    const completa = inf.total>0 && inf.hechas === inf.total;
+    const fecha = new Date(inf.fecha);
+    const fechaStr = fecha.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'}) +
+                      ' ' + fecha.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+    const div = document.createElement('div');
+    div.className = 'reparto-item';
+    div.style.cursor = 'default';
+    div.innerHTML = `
+      <div class="info">
+        <div class="nombre">${escapeHtml(inf.repartoNombre)}</div>
+        <div class="detalle">${fechaStr}</div>
+        <div class="detalle">${inf.hechas} de ${inf.total} paradas completadas</div>
+        <span class="estado ${completa?'completa':'parcial'}">${completa?'Completo':'Incompleto'}</span>
+      </div>
+      <button class="icon-btn" title="Eliminar informe">🗑️</button>`;
+    div.querySelector('[title="Eliminar informe"]').addEventListener('click', ()=>{
+      if(confirm('¿Eliminar este informe?')){
+        informes = informes.filter(x=>x.id!==inf.id);
+        guardarInformes();
+        renderInformes();
+      }
+    });
+    cont.appendChild(div);
+  });
+}
+
+/* ======================================================
+   INIT
+   ====================================================== */
+window.initMaps = initMaps;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW no registrado:', err));
+  });
+}
+</script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBW0AEYrxBzH1wPw6UPKA5PmfC8O6c2sw4&callback=initMaps" async defer></script>
+</body>
+</html>
