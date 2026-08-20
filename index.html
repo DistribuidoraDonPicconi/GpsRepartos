@@ -283,6 +283,7 @@
     <div class="campo">
       <label>Ubicación (tocá el mapa para marcar el punto)</label>
       <div id="mapaModal"></div>
+      <button type="button" id="btnUbicacionModal" class="btn-ubicacion" style="display:none;" title="Usar mi ubicación">📍</button>
       <div class="hint" id="hintCoords">Sin ubicación marcada todavía.</div>
     </div>
     <div class="modal-acciones">
@@ -359,14 +360,42 @@ function initMaps(){
     center: CENTRO_DEFAULT, zoom: 13, disableDefaultUI:true, zoomControl:true
   });
   mapaModal.addListener('click', (e)=>{
-    coordsNuevaParada = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-    if(marcadorNuevaParada) marcadorNuevaParada.setMap(null);
-    marcadorNuevaParada = new google.maps.Marker({ position: coordsNuevaParada, map: mapaModal });
-    document.getElementById('hintCoords').textContent =
-      'Ubicación marcada (' + coordsNuevaParada.lat.toFixed(5) + ', ' + coordsNuevaParada.lng.toFixed(5) + ')';
+    colocarPinNuevaParada({ lat: e.latLng.lat(), lng: e.latLng.lng() });
+  });
+
+  // Mismo botón nativo, pero en el mapa del modal: centra y marca el
+  // pin en tu ubicación actual (útil si estás parado en lo del cliente).
+  const btnUbicacionModal = document.getElementById('btnUbicacionModal');
+  btnUbicacionModal.style.display = 'block';
+  mapaModal.controls[google.maps.ControlPosition.TOP_RIGHT].push(btnUbicacionModal);
+  btnUbicacionModal.addEventListener('click', ()=>{
+    if(!navigator.geolocation){ alert('Este navegador no soporta geolocalización.'); return; }
+    btnUbicacionModal.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos)=>{
+        const punto = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        mapaModal.setCenter(punto);
+        mapaModal.setZoom(16);
+        colocarPinNuevaParada(punto);
+        btnUbicacionModal.disabled = false;
+      },
+      (err)=>{
+        alert('No se pudo obtener tu ubicación: ' + err.message);
+        btnUbicacionModal.disabled = false;
+      },
+      { enableHighAccuracy:true, timeout:10000 }
+    );
   });
 
   renderListaRepartos();
+}
+
+function colocarPinNuevaParada(punto){
+  coordsNuevaParada = punto;
+  if(marcadorNuevaParada) marcadorNuevaParada.setMap(null);
+  marcadorNuevaParada = new google.maps.Marker({ position: coordsNuevaParada, map: mapaModal });
+  document.getElementById('hintCoords').textContent =
+    'Ubicación marcada (' + coordsNuevaParada.lat.toFixed(5) + ', ' + coordsNuevaParada.lng.toFixed(5) + ')';
 }
 
 function pintarPinesRuta(){
