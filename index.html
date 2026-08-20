@@ -185,6 +185,21 @@
     flex:1; background:var(--gris-claro); color:var(--texto); border:none;
     border-radius:9px; padding:11px; font-weight:700; font-size:14px; cursor:pointer;
   }
+
+  /* ---- Modal de confirmación (reemplazo de confirm() nativo) ---- */
+  .modal-confirmacion{ max-width:420px; margin:0 auto; }
+  .modal-confirmacion .icono-confirmacion{
+    width:44px; height:44px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:20px; margin-bottom:10px;
+    background:var(--azul-claro); color:var(--azul);
+  }
+  .modal-confirmacion.peligro .icono-confirmacion{ background:#fde8e8; color:var(--rojo); }
+  .modal-confirmacion h2{ font-size:16px; margin:0 0 6px; }
+  .modal-confirmacion p{ font-size:13.5px; color:var(--gris); margin:0 0 16px; line-height:1.4; }
+  .btn-peligro{
+    flex:1; background:var(--rojo); color:#fff; border:none;
+    border-radius:9px; padding:11px; font-weight:700; font-size:14px; cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -289,6 +304,19 @@
     <div class="modal-acciones">
       <button class="btn-secundario" id="btnCancelarParada">Cancelar</button>
       <button class="btn-primario" id="btnGuardarParada" style="flex:1;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: confirmación genérica (reemplaza confirm() nativo) -->
+<div class="overlay" id="overlayConfirmacion">
+  <div class="modal modal-confirmacion" id="modalConfirmacion">
+    <div class="icono-confirmacion" id="iconoConfirmacion">❓</div>
+    <h2 id="tituloConfirmacion">¿Confirmar?</h2>
+    <p id="textoConfirmacion"></p>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="btnCancelarConfirmacion">Cancelar</button>
+      <button class="btn-primario" id="btnConfirmarConfirmacion" style="flex:1;">Confirmar</button>
     </div>
   </div>
 </div>
@@ -522,6 +550,45 @@ function escapeHtml(s){
 }
 
 /* ======================================================
+   MODAL DE CONFIRMACIÓN (reemplaza confirm() nativo)
+   ====================================================== */
+let confirmacionCallback = null;
+
+function confirmarAccion(mensaje, onConfirm, opciones){
+  opciones = opciones || {};
+  const modal = document.getElementById('modalConfirmacion');
+  const peligro = !!opciones.peligro;
+
+  document.getElementById('tituloConfirmacion').textContent = opciones.titulo || (peligro ? 'Eliminar' : 'Confirmar');
+  document.getElementById('textoConfirmacion').textContent = mensaje;
+  document.getElementById('iconoConfirmacion').textContent = peligro ? '🗑️' : '❓';
+  modal.classList.toggle('peligro', peligro);
+
+  const btnConfirmar = document.getElementById('btnConfirmarConfirmacion');
+  btnConfirmar.textContent = opciones.textoConfirmar || (peligro ? 'Eliminar' : 'Confirmar');
+  btnConfirmar.className = peligro ? 'btn-peligro' : 'btn-primario';
+  btnConfirmar.style.flex = '1';
+
+  confirmacionCallback = onConfirm;
+  document.getElementById('overlayConfirmacion').classList.add('active');
+}
+
+function cerrarConfirmacion(){
+  document.getElementById('overlayConfirmacion').classList.remove('active');
+  confirmacionCallback = null;
+}
+
+document.getElementById('btnCancelarConfirmacion').addEventListener('click', cerrarConfirmacion);
+document.getElementById('overlayConfirmacion').addEventListener('click', (e)=>{
+  if(e.target.id === 'overlayConfirmacion') cerrarConfirmacion();
+});
+document.getElementById('btnConfirmarConfirmacion').addEventListener('click', ()=>{
+  const cb = confirmacionCallback;
+  cerrarConfirmacion();
+  if(cb) cb();
+});
+
+/* ======================================================
    LISTA DE REPARTOS
    ====================================================== */
 function renderListaRepartos(){
@@ -638,11 +705,11 @@ function renderDetalleReparto(){
     }
     div.querySelector('[title="Editar"]').addEventListener('click', ()=>abrirModalParada(p));
     div.querySelector('[title="Eliminar"]').addEventListener('click', ()=>{
-      if(confirm('¿Eliminar a '+p.nombre+' de este reparto?')){
+      confirmarAccion('¿Eliminar a '+p.nombre+' de este reparto?', ()=>{
         r.paradas = r.paradas.filter(x=>x.id!==p.id);
         guardarRepartos();
         renderDetalleReparto();
-      }
+      }, { peligro:true });
     });
     cont.appendChild(div);
   });
@@ -669,24 +736,24 @@ document.getElementById('btnGuardarReparto').addEventListener('click', ()=>{
 
 document.getElementById('btnTerminarReparto').addEventListener('click', ()=>{
   const r = repartoActual();
-  if(!confirm('¿Terminar este reparto? Se va a guardar como una entrada nueva en Informes.')) return;
+  confirmarAccion('¿Terminar este reparto? Se va a guardar como una entrada nueva en Informes.', ()=>{
+    const total = r.paradas.length;
+    const hechas = r.paradas.filter(p=>p.hecha).length;
+    informes.push({
+      id: nuevoId('i'),
+      repartoId: r.id,
+      repartoNombre: r.nombre,
+      fecha: new Date().toISOString(),
+      total, hechas
+    });
+    guardarInformes();
 
-  const total = r.paradas.length;
-  const hechas = r.paradas.filter(p=>p.hecha).length;
-  informes.push({
-    id: nuevoId('i'),
-    repartoId: r.id,
-    repartoNombre: r.nombre,
-    fecha: new Date().toISOString(),
-    total, hechas
-  });
-  guardarInformes();
-
-  if(watchIdGPS) toggleMiUbicacion();
-  repartoActualId = null;
-  document.getElementById('vistaDetalleReparto').style.display = 'none';
-  document.getElementById('vistaListaRepartos').style.display = 'block';
-  renderListaRepartos();
+    if(watchIdGPS) toggleMiUbicacion();
+    repartoActualId = null;
+    document.getElementById('vistaDetalleReparto').style.display = 'none';
+    document.getElementById('vistaListaRepartos').style.display = 'block';
+    renderListaRepartos();
+  }, { titulo:'Terminar reparto', textoConfirmar:'Terminar' });
 });
 
 /* ======================================================
@@ -765,11 +832,11 @@ function renderInformes(){
     btnEliminarTodos.style.marginBottom = '12px';
     btnEliminarTodos.textContent = '🗑️ Eliminar todos los informes';
     btnEliminarTodos.addEventListener('click', ()=>{
-      if(confirm('¿Eliminar todos los informes? Esto no borra los repartos ni sus clientes, solo el historial.')){
+      confirmarAccion('¿Eliminar todos los informes? Esto no borra los repartos ni sus clientes, solo el historial.', ()=>{
         informes = [];
         guardarInformes();
         renderInformes();
-      }
+      }, { peligro:true, titulo:'Eliminar todos los informes' });
     });
     cont.appendChild(btnEliminarTodos);
   }
@@ -793,11 +860,11 @@ function renderInformes(){
       </div>
       <button class="icon-btn" title="Eliminar informe">🗑️</button>`;
     div.querySelector('[title="Eliminar informe"]').addEventListener('click', ()=>{
-      if(confirm('¿Eliminar este informe?')){
+      confirmarAccion('¿Eliminar este informe?', ()=>{
         informes = informes.filter(x=>x.id!==inf.id);
         guardarInformes();
         renderInformes();
-      }
+      }, { peligro:true, titulo:'Eliminar informe' });
     });
     cont.appendChild(div);
   });
