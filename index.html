@@ -102,6 +102,18 @@
   }
   .btn-ubicacion.activo{ background:var(--azul); }
 
+  .nav-paradas{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--azul-oscuro); color:#fff; padding:8px 6px;
+  }
+  .nav-flecha{
+    background:rgba(255,255,255,.15); color:#fff; border:none; border-radius:8px;
+    width:38px; height:34px; font-size:20px; font-weight:700; cursor:pointer;
+  }
+  .nav-flecha:disabled{ opacity:.35; }
+  .nav-texto{ font-size:13px; font-weight:600; text-align:center; flex:1; padding:0 6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
   .lista-paradas{ flex:1; padding:10px 12px 90px; }
   .parada{
     display:flex; align-items:center; gap:10px;
@@ -208,6 +220,12 @@
         <div style="position:relative;">
           <div id="mapaRuta"></div>
           <button id="btnMiUbicacion" class="btn-ubicacion" title="Mi ubicación">📍</button>
+        </div>
+
+        <div class="nav-paradas" id="navParadas" style="display:none;">
+          <button class="nav-flecha" id="btnParadaAnt">‹</button>
+          <div class="nav-texto" id="navParadaTexto">Parada 1/1</div>
+          <button class="nav-flecha" id="btnParadaSig">›</button>
         </div>
 
         <div class="lista-paradas" id="listaParadas"></div>
@@ -320,6 +338,7 @@ let coordsNuevaParada = null;
 let watchIdGPS = null;
 let marcadorMiUbicacion = null;
 let circuloPrecision = null;
+let paradaSeleccionadaIdx = 0; // índice de la parada mostrada en la barra de navegación
 
 // Centro por defecto: Paraná, Entre Ríos
 const CENTRO_DEFAULT = { lat: -31.7333, lng: -60.5297 };
@@ -370,6 +389,47 @@ function crearPinNumerado(parada, numero, hecha){
     label:{ text:String(numero), color:'#fff', fontSize:'12px', fontWeight:'700' }
   });
 }
+
+/* ---- Navegación horizontal entre paradas (‹ Parada X/N ›) ---- */
+function renderNavParadas(){
+  const r = repartoActual();
+  const nav = document.getElementById('navParadas');
+  if(!r || r.paradas.length===0){ nav.style.display='none'; return; }
+  nav.style.display = 'flex';
+
+  if(paradaSeleccionadaIdx >= r.paradas.length) paradaSeleccionadaIdx = r.paradas.length - 1;
+  if(paradaSeleccionadaIdx < 0) paradaSeleccionadaIdx = 0;
+
+  const p = r.paradas[paradaSeleccionadaIdx];
+  document.getElementById('navParadaTexto').textContent =
+    (paradaSeleccionadaIdx+1) + '/' + r.paradas.length + ' — ' + p.nombre;
+  document.getElementById('btnParadaAnt').disabled = paradaSeleccionadaIdx === 0;
+  document.getElementById('btnParadaSig').disabled = paradaSeleccionadaIdx === r.paradas.length - 1;
+
+  centrarEnParada(p);
+}
+
+function centrarEnParada(parada){
+  if(parada.lat==null) return;
+  mapaRuta.panTo({ lat:parada.lat, lng:parada.lng });
+  if(mapaRuta.getZoom() < 15) mapaRuta.setZoom(15);
+  const marcador = marcadoresRuta[paradaSeleccionadaIdx];
+  if(marcador) rebotarMarcador(marcador);
+}
+
+function rebotarMarcador(marcador){
+  marcador.setAnimation(google.maps.Animation.BOUNCE);
+  setTimeout(()=>marcador.setAnimation(null), 700);
+}
+
+document.getElementById('btnParadaAnt').addEventListener('click', ()=>{
+  paradaSeleccionadaIdx--;
+  renderNavParadas();
+});
+document.getElementById('btnParadaSig').addEventListener('click', ()=>{
+  paradaSeleccionadaIdx++;
+  renderNavParadas();
+});
 
 /* ---- Mi ubicación (GPS) ---- */
 document.getElementById('btnMiUbicacion').addEventListener('click', toggleMiUbicacion);
@@ -481,6 +541,7 @@ document.getElementById('btnCrearReparto').addEventListener('click', ()=>{
    ====================================================== */
 function abrirReparto(id){
   repartoActualId = id;
+  paradaSeleccionadaIdx = 0;
   document.getElementById('vistaListaRepartos').style.display = 'none';
   document.getElementById('vistaDetalleReparto').style.display = 'flex';
   document.getElementById('tituloRepartoActual').textContent = repartoActual().nombre;
@@ -499,6 +560,7 @@ document.getElementById('btnVolverLista').addEventListener('click', ()=>{
 
 function renderDetalleReparto(){
   pintarPinesRuta();
+  renderNavParadas();
   const r = repartoActual();
   const cont = document.getElementById('listaParadas');
   cont.innerHTML = '';
@@ -717,6 +779,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBW0AEYrxBzH1wPw6UPKA5PmfC8O6c2sw4&callback=initMaps" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHr9yycoUwfSwclFJuA0rOxkAJBh6w0W0&callback=initMaps" async defer></script>
 </body>
 </html>
